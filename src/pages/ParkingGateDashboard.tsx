@@ -1,22 +1,20 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react"; // Import useRef
 import ParkingGate from "@/components/ParkingGate";
 import UltrasonicSensor from "@/components/UltrasonicSensor";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge"; // Import Badge component
+import { Badge } from "@/components/ui/badge";
 import { MadeWithDyad } from "@/components/made-with-dyad";
 import { useMqtt } from "@/hooks/useMqtt";
-import { format } from "date-fns"; // Import date-fns for formatting timestamps
+import { format } from "date-fns";
 
 const MQTT_BROKER_URL = "ws://broker.hivemq.com:8000/mqtt";
-const MQTT_TOPICS = ["parking/distance", "parking/counter"]; // Array of topics
+const MQTT_TOPICS = ["parking/distance"]; // Hanya berlangganan topik jarak
 
 const ParkingGateDashboard: React.FC = () => {
   const {
     distance: mqttDistance,
-    counter: mqttCounter,
-    counterLastUpdate,
     isConnected,
   } = useMqtt({
     brokerUrl: MQTT_BROKER_URL,
@@ -24,8 +22,11 @@ const ParkingGateDashboard: React.FC = () => {
   });
 
   const [distance, setDistance] = useState<number>(50);
-  const [counter, setCounter] = useState<number | null>(null);
   const [isGateOpen, setIsGateOpen] = useState<boolean>(false);
+  const [vehicleEntryCount, setVehicleEntryCount] = useState<number>(0); // State lokal untuk counter
+  const [lastEntryTime, setLastEntryTime] = useState<Date | null>(null); // State lokal untuk waktu update
+
+  const prevIsGateOpenRef = useRef(false); // Ref untuk melacak status gerbang sebelumnya
 
   useEffect(() => {
     if (mqttDistance !== null) {
@@ -33,10 +34,7 @@ const ParkingGateDashboard: React.FC = () => {
     }
   }, [mqttDistance]);
 
-  useEffect(() => {
-    setCounter(mqttCounter);
-  }, [mqttCounter]);
-
+  // Logika untuk membuka/menutup gerbang berdasarkan jarak
   useEffect(() => {
     if (distance < 20) {
       setIsGateOpen(true);
@@ -44,6 +42,16 @@ const ParkingGateDashboard: React.FC = () => {
       setIsGateOpen(false);
     }
   }, [distance]);
+
+  // Logika untuk menghitung kendaraan saat gerbang terbuka
+  useEffect(() => {
+    const prevIsGateOpen = prevIsGateOpenRef.current;
+    if (isGateOpen && !prevIsGateOpen) { // Deteksi transisi dari tertutup ke terbuka
+      setVehicleEntryCount((prevCount) => prevCount + 1);
+      setLastEntryTime(new Date());
+    }
+    prevIsGateOpenRef.current = isGateOpen; // Perbarui ref untuk siklus render berikutnya
+  }, [isGateOpen]);
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 p-4">
@@ -53,22 +61,22 @@ const ParkingGateDashboard: React.FC = () => {
         <UltrasonicSensor distance={distance} />
         <ParkingGate isOpen={isGateOpen} />
 
-        {/* New Card for Vehicle Entry Counter */}
+        {/* Card untuk Jumlah Kendaraan Masuk (berdasarkan pembukaan palang) */}
         <Card className="w-64 text-center">
           <CardHeader>
             <CardTitle>Jumlah Kendaraan Masuk</CardTitle>
           </CardHeader>
           <CardContent>
             <p className="text-5xl font-bold">
-              {counter !== null ? counter : "N/A"}
+              {vehicleEntryCount}
             </p>
-            {counterLastUpdate && (
+            {lastEntryTime && (
               <Badge variant="secondary" className="mt-4">
-                Terakhir Update: {format(counterLastUpdate, "HH:mm:ss")}
+                Terakhir Masuk: {format(lastEntryTime, "HH:mm:ss")}
               </Badge>
             )}
-            {counter === null && (
-              <p className="text-sm text-gray-500 mt-2">Counter belum tersedia</p>
+            {vehicleEntryCount === 0 && !lastEntryTime && (
+              <p className="text-sm text-gray-500 mt-2">Belum ada kendaraan masuk</p>
             )}
           </CardContent>
         </Card>
@@ -89,7 +97,7 @@ const ParkingGateDashboard: React.FC = () => {
             Broker: <span className="font-mono">{MQTT_BROKER_URL}</span>
           </p>
           <p className="text-sm text-gray-500 mt-4">
-            Pastikan Node-RED Anda mengirim data jarak (angka) ke topik `parking/distance` dan jumlah kendaraan (angka) ke `parking/counter`.
+            Pastikan Node-RED Anda mengirim data jarak (angka) ke topik `parking/distance`.
           </p>
         </CardContent>
       </Card>
