@@ -8,13 +8,13 @@ import { Badge } from "@/components/ui/badge";
 import { MadeWithDyad } from "@/components/made-with-dyad";
 import { useMqtt } from "@/hooks/useMqtt";
 import { format } from "date-fns";
-import { Car, XCircle, CheckCircle, LogOut, RotateCcw } from "lucide-react"; // Import RotateCcw icon
+import { Car, XCircle, CheckCircle, LogOut, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 
 const MQTT_BROKER_URL = "ws://broker.hivemq.com:8000/mqtt";
-const MQTT_TOPICS = ["parking/distance"];
+const MQTT_TOPICS = ["parking/distance", "parking/exitDistance"]; // Tambahkan topik untuk sensor keluar
 
 const MAX_PARKING_CAPACITY = 20;
 const LOCAL_STORAGE_KEY_COUNT = "parking_vehicle_entry_count";
@@ -22,17 +22,19 @@ const LOCAL_STORAGE_KEY_LAST_ENTRY = "parking_last_entry_time";
 
 const ParkingGateDashboard: React.FC = () => {
   const {
-    distance: mqttDistance,
+    distance: mqttEntryDistance, // Ganti nama untuk kejelasan
+    exitDistance: mqttExitDistance, // Ambil jarak sensor keluar
     isConnected,
   } = useMqtt({
     brokerUrl: MQTT_BROKER_URL,
     topics: MQTT_TOPICS,
   });
 
-  const [distance, setDistance] = useState<number>(50);
-  const [isGateOpen, setIsGateOpen] = useState<boolean>(false);
+  const [entryDistance, setEntryDistance] = useState<number>(50); // Jarak sensor masuk
+  const [exitDistance, setExitDistance] = useState<number>(50); // Jarak sensor keluar
+  const [isEntryGateOpen, setIsEntryGateOpen] = useState<boolean>(false); // Gerbang masuk
+  const [isExitGateOpen, setIsExitGateOpen] = useState<boolean>(false); // Gerbang keluar
   
-  // Inisialisasi state dari localStorage atau nilai default
   const [vehicleEntryCount, setVehicleEntryCount] = useState<number>(() => {
     const storedCount = localStorage.getItem(LOCAL_STORAGE_KEY_COUNT);
     return storedCount ? parseInt(storedCount, 10) : 0;
@@ -44,43 +46,73 @@ const ParkingGateDashboard: React.FC = () => {
 
   const [isParkingFull, setIsParkingFull] = useState<boolean>(false);
 
-  const prevIsGateOpenRef = useRef(false);
+  const prevIsEntryGateOpenRef = useRef(false);
+  const prevIsExitGateOpenRef = useRef(false); // Ref untuk gerbang keluar
   const navigate = useNavigate();
 
+  // Update jarak sensor masuk
   useEffect(() => {
-    if (mqttDistance !== null) {
-      setDistance(mqttDistance);
+    if (mqttEntryDistance !== null) {
+      setEntryDistance(mqttEntryDistance);
     }
-  }, [mqttDistance]);
+  }, [mqttEntryDistance]);
+
+  // Update jarak sensor keluar
+  useEffect(() => {
+    if (mqttExitDistance !== null) {
+      setExitDistance(mqttExitDistance);
+    }
+  }, [mqttExitDistance]);
 
   // Logika untuk menentukan apakah parkir penuh
   useEffect(() => {
     setIsParkingFull(vehicleEntryCount >= MAX_PARKING_CAPACITY);
-    // Simpan vehicleEntryCount ke localStorage setiap kali berubah
     localStorage.setItem(LOCAL_STORAGE_KEY_COUNT, vehicleEntryCount.toString());
   }, [vehicleEntryCount]);
 
-  // Logika untuk membuka/menutup gerbang berdasarkan jarak DAN status parkir
+  // Logika untuk membuka/menutup gerbang masuk berdasarkan jarak DAN status parkir
   useEffect(() => {
-    if (distance < 20 && !isParkingFull) {
-      setIsGateOpen(true);
+    if (entryDistance < 20 && !isParkingFull) {
+      setIsEntryGateOpen(true);
     } else {
-      setIsGateOpen(false);
+      setIsEntryGateOpen(false);
     }
-  }, [distance, isParkingFull]);
+  }, [entryDistance, isParkingFull]);
 
+  // Logika untuk membuka/menutup gerbang keluar berdasarkan jarak
   useEffect(() => {
-    const prevIsGateOpen = prevIsGateOpenRef.current;
-    if (isGateOpen && !prevIsGateOpen) {
+    if (exitDistance < 20) {
+      setIsExitGateOpen(true);
+    } else {
+      setIsExitGateOpen(false);
+    }
+  }, [exitDistance]);
+
+  // Logika untuk menambah jumlah kendaraan saat gerbang masuk terbuka
+  useEffect(() => {
+    const prevIsEntryGateOpen = prevIsEntryGateOpenRef.current;
+    if (isEntryGateOpen && !prevIsEntryGateOpen) {
       const newCount = vehicleEntryCount + 1;
       setVehicleEntryCount(newCount);
       const newTime = new Date();
       setLastEntryTime(newTime);
-      // Simpan lastEntryTime ke localStorage setiap kali berubah
       localStorage.setItem(LOCAL_STORAGE_KEY_LAST_ENTRY, newTime.toISOString());
+      toast.success("Kendaraan masuk!");
     }
-    prevIsGateOpenRef.current = isGateOpen;
-  }, [isGateOpen, vehicleEntryCount]);
+    prevIsEntryGateOpenRef.current = isEntryGateOpen;
+  }, [isEntryGateOpen, vehicleEntryCount]);
+
+  // Logika untuk mengurangi jumlah kendaraan saat gerbang keluar terbuka
+  useEffect(() => {
+    const prevIsExitGateOpen = prevIsExitGateOpenRef.current;
+    if (isExitGateOpen && !prevIsExitGateOpen) {
+      const newCount = Math.max(0, vehicleEntryCount - 1); // Pastikan tidak kurang dari 0
+      setVehicleEntryCount(newCount);
+      localStorage.setItem(LOCAL_STORAGE_KEY_COUNT, newCount.toString());
+      toast.info("Kendaraan keluar!");
+    }
+    prevIsExitGateOpenRef.current = isExitGateOpen;
+  }, [isExitGateOpen, vehicleEntryCount]);
 
   const handleLogout = () => {
     localStorage.removeItem("isAuthenticated");
@@ -100,7 +132,7 @@ const ParkingGateDashboard: React.FC = () => {
     <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 p-4">
       <div className="w-full max-w-6xl flex justify-between items-center mb-8">
         <h1 className="text-4xl font-bold text-gray-800">Dashboard Gerbang Parkir</h1>
-        <div className="flex gap-4"> {/* Group buttons */}
+        <div className="flex gap-4">
           <Button variant="outline" onClick={handleReset} className="flex items-center gap-2">
             <RotateCcw className="h-4 w-4" />
             Reset
@@ -112,16 +144,37 @@ const ParkingGateDashboard: React.FC = () => {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 mb-12">
-        <UltrasonicSensor distance={distance} />
-        <ParkingGate isOpen={isGateOpen} />
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-12 w-full max-w-6xl">
+        {/* Jalur Masuk */}
+        <Card className="flex flex-col items-center gap-4 p-6">
+          <CardHeader className="w-full text-center">
+            <CardTitle className="text-2xl">Jalur Masuk</CardTitle>
+          </CardHeader>
+          <CardContent className="flex flex-col items-center gap-4">
+            <UltrasonicSensor distance={entryDistance} />
+            <ParkingGate isOpen={isEntryGateOpen} />
+          </CardContent>
+        </Card>
 
+        {/* Jalur Keluar */}
+        <Card className="flex flex-col items-center gap-4 p-6">
+          <CardHeader className="w-full text-center">
+            <CardTitle className="text-2xl">Jalur Keluar</CardTitle>
+          </CardHeader>
+          <CardContent className="flex flex-col items-center gap-4">
+            <UltrasonicSensor distance={exitDistance} />
+            <ParkingGate isOpen={isExitGateOpen} />
+          </CardContent>
+        </Card>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-12 w-full max-w-6xl">
         {/* Card untuk Jumlah Kendaraan Masuk */}
-        <Card className="w-64 text-center">
+        <Card className="text-center">
           <CardHeader>
             <CardTitle className="flex items-center justify-center gap-2">
               <Car className="text-gray-600" />
-              Kendaraan Masuk
+              Kendaraan di Parkir
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -140,7 +193,7 @@ const ParkingGateDashboard: React.FC = () => {
         </Card>
 
         {/* Card untuk Status Parkir */}
-        <Card className="w-64 text-center">
+        <Card className="text-center">
           <CardHeader>
             <CardTitle className="flex items-center justify-center gap-2">
               {isParkingFull ? (
@@ -179,7 +232,7 @@ const ParkingGateDashboard: React.FC = () => {
             Broker: <span className="font-mono">{MQTT_BROKER_URL}</span>
           </p>
           <p className="text-sm text-gray-500 mt-4">
-            Pastikan Node-RED Anda mengirim data jarak (angka) ke topik `parking/distance`.
+            Pastikan Node-RED Anda mengirim data jarak (angka) ke topik `parking/distance` (masuk) dan `parking/exitDistance` (keluar).
           </p>
         </CardContent>
       </Card>

@@ -75,11 +75,13 @@ export function useMqtt({ brokerUrl, topics }: MqttHookOptions) {
   }, [brokerUrl, topics]);
 
   const distanceMessage = messages["parking/distance"]?.payload;
+  const exitDistanceMessage = messages["parking/exitDistance"]?.payload; // New exit distance message
   const counterMessage = messages["parking/counter"]?.payload;
   const counterLastUpdate = messages["parking/counter"]?.timestamp;
 
   return {
     distance: distanceMessage ? parseInt(distanceMessage, 10) : null,
+    exitDistance: exitDistanceMessage ? parseInt(exitDistanceMessage, 10) : null, // Return exit distance
     counter: counterMessage ? parseInt(counterMessage, 10) : null,
     counterLastUpdate,
     isConnected,
