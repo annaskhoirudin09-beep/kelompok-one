@@ -14,21 +14,15 @@ import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 
 const MQTT_BROKER_URL = "ws://broker.hivemq.com:8000/mqtt";
-// Definisikan semua topik, baik untuk berlangganan maupun mempublikasikan
-const MQTT_TOPICS = [
+// Definisikan semua topik yang akan digunakan (berlangganan dan publikasi)
+const MQTT_TOPICS_SUBSCRIBE = [
   "parking/distance",
   "parking/exitDistance",
-  "parking/current_vehicles", // Topik untuk jumlah kendaraan saat ini
-  "parking/status",           // Topik untuk status parkir
-  "parking/daily_entry",      // Topik untuk jumlah masuk harian
-  "parking/daily_exit",       // Topik untuk jumlah keluar harian
+  "parking/dashboard_data", // Topik baru untuk data gabungan
 ];
 
-// Definisikan konstanta untuk topik publikasi
-const MQTT_TOPIC_CURRENT_VEHICLES = "parking/current_vehicles";
-const MQTT_TOPIC_PARKING_STATUS = "parking/status";
-const MQTT_TOPIC_DAILY_ENTRY = "parking/daily_entry";
-const MQTT_TOPIC_DAILY_EXIT = "parking/daily_exit";
+// Definisikan konstanta untuk topik publikasi data dashboard gabungan
+const MQTT_TOPIC_DASHBOARD_DATA = "parking/dashboard_data";
 
 const MAX_PARKING_CAPACITY = 20;
 const LOCAL_STORAGE_KEY_COUNT = "parking_vehicle_entry_count";
@@ -43,10 +37,10 @@ const ParkingGateDashboard: React.FC = () => {
     distance: mqttEntryDistance,
     exitDistance: mqttExitDistance,
     isConnected,
-    publish, // Dapatkan fungsi publish dari hook
+    publish,
   } = useMqtt({
     brokerUrl: MQTT_BROKER_URL,
-    topics: MQTT_TOPICS, // Teruskan semua topik ke hook
+    topics: MQTT_TOPICS_SUBSCRIBE, // Teruskan topik yang akan disubscribe
   });
 
   const [entryDistance, setEntryDistance] = useState<number>(50);
@@ -72,33 +66,19 @@ const ParkingGateDashboard: React.FC = () => {
   const prevIsExitGateOpenRef = useRef(false);
   const navigate = useNavigate();
 
-  // Effect untuk mempublikasikan jumlah kendaraan saat ini ke MQTT
+  // Effect untuk mempublikasikan semua data dashboard ke satu topik MQTT
   useEffect(() => {
     if (isConnected) {
-      publish(MQTT_TOPIC_CURRENT_VEHICLES, vehicleEntryCount.toString());
+      const dashboardData = {
+        currentVehicles: vehicleEntryCount,
+        parkingStatus: isParkingFull ? "Penuh" : "Tersedia",
+        dailyEntry: dailyEntryCount,
+        dailyExit: dailyExitCount,
+        timestamp: new Date().toISOString(),
+      };
+      publish(MQTT_TOPIC_DASHBOARD_DATA, JSON.stringify(dashboardData));
     }
-  }, [vehicleEntryCount, isConnected, publish]);
-
-  // Effect untuk mempublikasikan status parkir ke MQTT
-  useEffect(() => {
-    if (isConnected) {
-      publish(MQTT_TOPIC_PARKING_STATUS, isParkingFull ? "Penuh" : "Tersedia");
-    }
-  }, [isParkingFull, isConnected, publish]);
-
-  // Effect untuk mempublikasikan jumlah masuk harian ke MQTT
-  useEffect(() => {
-    if (isConnected) {
-      publish(MQTT_TOPIC_DAILY_ENTRY, dailyEntryCount.toString());
-    }
-  }, [dailyEntryCount, isConnected, publish]);
-
-  // Effect untuk mempublikasikan jumlah keluar harian ke MQTT
-  useEffect(() => {
-    if (isConnected) {
-      publish(MQTT_TOPIC_DAILY_EXIT, dailyExitCount.toString());
-    }
-  }, [dailyExitCount, isConnected, publish]);
+  }, [vehicleEntryCount, isParkingFull, dailyEntryCount, dailyExitCount, isConnected, publish]);
 
   // Effect untuk inisialisasi hitungan harian dari localStorage atau mereset jika hari berbeda
   useEffect(() => {
@@ -158,12 +138,12 @@ const ParkingGateDashboard: React.FC = () => {
 
   // Logika untuk membuka/menutup gerbang keluar berdasarkan jarak DAN jumlah kendaraan di parkir
   useEffect(() => {
-    if (exitDistance < 20 && vehicleEntryCount > 0) { // Tambahkan kondisi vehicleEntryCount > 0
+    if (exitDistance < 20 && vehicleEntryCount > 0) {
       setIsExitGateOpen(true);
     } else {
       setIsExitGateOpen(false);
     }
-  }, [exitDistance, vehicleEntryCount]); // Tambahkan vehicleEntryCount ke dependencies
+  }, [exitDistance, vehicleEntryCount]);
 
   // Logika untuk menambah jumlah kendaraan saat gerbang masuk terbuka
   useEffect(() => {
@@ -352,13 +332,14 @@ const ParkingGateDashboard: React.FC = () => {
             {isConnected ? "Terhubung" : "Terputus"}
           </p>
           <p className="text-sm text-gray-500 mt-2">
-            Mendengarkan topik: <span className="font-mono">{MQTT_TOPICS.join(", ")}</span>
+            Mendengarkan topik: <span className="font-mono">{MQTT_TOPICS_SUBSCRIBE.join(", ")}</span>
           </p>
           <p className="text-sm text-gray-500">
             Broker: <span className="font-mono">{MQTT_BROKER_URL}</span>
           </p>
           <p className="text-sm text-gray-500 mt-4">
             Pastikan Node-RED Anda mengirim data jarak (angka) ke topik `parking/distance` (masuk) dan `parking/exitDistance` (keluar).
+            Data dashboard gabungan akan dipublikasikan ke topik `parking/dashboard_data`.
           </p>
         </CardContent>
       </Card>
