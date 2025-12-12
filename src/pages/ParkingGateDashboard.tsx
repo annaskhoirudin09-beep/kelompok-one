@@ -171,19 +171,16 @@ const ParkingGateDashboard: React.FC = () => {
   };
 
   const handleReset = () => {
-    setVehicleEntryCount(0);
-    setLastEntryTime(null);
+    // Hanya mereset hitungan harian
     setDailyEntryCount(0);
     setDailyExitCount(0);
 
-    localStorage.removeItem(LOCAL_STORAGE_KEY_COUNT);
-    localStorage.removeItem(LOCAL_STORAGE_KEY_LAST_ENTRY);
     localStorage.removeItem(LOCAL_STORAGE_KEY_DAILY_ENTRY_COUNT);
     localStorage.removeItem(LOCAL_STORAGE_KEY_DAILY_ENTRY_DATE);
     localStorage.removeItem(LOCAL_STORAGE_KEY_DAILY_EXIT_COUNT);
     localStorage.removeItem(LOCAL_STORAGE_KEY_DAILY_EXIT_DATE);
 
-    toast.success("Data parkir telah direset!");
+    toast.success("Data harian telah direset!");
   };
 
   return (
@@ -193,7 +190,7 @@ const ParkingGateDashboard: React.FC = () => {
         <div className="flex gap-4">
           <Button variant="outline" onClick={handleReset} className="flex items-center gap-2">
             <RotateCcw className="h-4 w-4" />
-            Reset
+            Reset Harian
           </Button>
           <Button variant="outline" onClick={handleLogout} className="flex items-center gap-2">
             <LogOut className="h-4 w-4" />
