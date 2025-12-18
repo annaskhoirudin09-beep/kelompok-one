@@ -1,14 +1,14 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
-import LEDIndicator from "@/components/LEDIndicator"; // Mengganti ParkingGate dengan LEDIndicator
+import LEDIndicator from "@/components/LEDIndicator";
 import UltrasonicSensor from "@/components/UltrasonicSensor";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { MadeWithDyad } from "@/components/made-with-dyad";
 import { useMqtt } from "@/hooks/useMqtt";
 import { format } from "date-fns";
-import { Car, XCircle, CheckCircle, RotateCcw } from "lucide-react"; // Menghapus LogOut
+import { Car, XCircle, CheckCircle, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 
@@ -60,7 +60,6 @@ const ParkingGateDashboard: React.FC = () => {
 
   const prevIsEntryGateOpenRef = useRef(false);
   const prevIsExitGateOpenRef = useRef(false);
-  // const navigate = useNavigate(); // Tidak diperlukan lagi karena tidak ada logout
 
   // Effect untuk mempublikasikan semua data dashboard ke satu topik MQTT
   useEffect(() => {
@@ -183,12 +182,6 @@ const ParkingGateDashboard: React.FC = () => {
     prevIsExitGateOpenRef.current = isExitGateOpen;
   }, [isExitGateOpen, vehicleEntryCount]);
 
-  // const handleLogout = () => { // Fungsi ini dihapus
-  //   localStorage.removeItem("isAuthenticated");
-  //   toast.info("Anda telah logout.");
-  //   navigate("/login");
-  // };
-
   const handleReset = () => {
     // Hanya mereset hitungan harian
     setDailyEntryCount(0);
@@ -211,7 +204,6 @@ const ParkingGateDashboard: React.FC = () => {
             <RotateCcw className="h-4 w-4" />
             Reset Harian
           </Button>
-          {/* Tombol Logout dihapus */}
         </div>
       </div>
 
@@ -223,7 +215,7 @@ const ParkingGateDashboard: React.FC = () => {
           </CardHeader>
           <CardContent className="flex flex-col items-center gap-4">
             <UltrasonicSensor distance={entryDistance} />
-            <LEDIndicator isOn={isEntryGateOpen} label="LED Gerbang Masuk" /> {/* Mengganti ParkingGate */}
+            <LEDIndicator isOn={isEntryGateOpen} label="LED Gerbang Masuk" />
           </CardContent>
         </Card>
 
@@ -234,12 +226,12 @@ const ParkingGateDashboard: React.FC = () => {
           </CardHeader>
           <CardContent className="flex flex-col items-center gap-4">
             <UltrasonicSensor distance={exitDistance} />
-            <LEDIndicator isOn={isExitGateOpen} label="LED Gerbang Keluar" /> {/* Mengganti ParkingGate */}
+            <LEDIndicator isOn={isExitGateOpen} label="LED Gerbang Keluar" />
           </CardContent>
         </Card>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 mb-12 w-full max-w-6xl">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-12 w-full max-w-6xl"> {/* Mengubah grid-cols-4 menjadi grid-cols-2 */}
         {/* Card untuk Jumlah Kendaraan di Parkir */}
         <Card className="text-center">
           <CardHeader>
@@ -287,33 +279,7 @@ const ParkingGateDashboard: React.FC = () => {
           </CardContent>
         </Card>
 
-        {/* New Card for Daily Entry Count */}
-        <Card className="text-center">
-          <CardHeader>
-            <CardTitle className="flex items-center justify-center gap-2">
-              <Car className="text-green-600" />
-              Masuk Hari Ini
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-5xl font-bold">{dailyEntryCount}</p>
-            <p className="text-sm text-gray-500 mt-2">Kendaraan masuk hari ini</p>
-          </CardContent>
-        </Card>
-
-        {/* New Card for Daily Exit Count */}
-        <Card className="text-center">
-          <CardHeader>
-            <CardTitle className="flex items-center justify-center gap-2">
-              <Car className="text-red-600" />
-              Keluar Hari Ini
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-5xl font-bold">{dailyExitCount}</p>
-            <p className="text-sm text-gray-500 mt-2">Kendaraan keluar hari ini</p>
-          </CardContent>
-        </Card>
+        {/* Card untuk Masuk Hari Ini dan Keluar Hari Ini telah dihapus dari tampilan */}
       </div>
 
       <Card className="w-full max-w-md p-6 text-center">
