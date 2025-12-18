@@ -1,27 +1,23 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
-import ParkingGate from "@/components/ParkingGate";
+import LEDIndicator from "@/components/LEDIndicator"; // Mengganti ParkingGate dengan LEDIndicator
 import UltrasonicSensor from "@/components/UltrasonicSensor";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { MadeWithDyad } from "@/components/made-with-dyad";
 import { useMqtt } from "@/hooks/useMqtt";
 import { format } from "date-fns";
-import { Car, XCircle, CheckCircle, LogOut, RotateCcw } from "lucide-react";
+import { Car, XCircle, CheckCircle, RotateCcw } from "lucide-react"; // Menghapus LogOut
 import { Button } from "@/components/ui/button";
-import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 
 const MQTT_BROKER_URL = "ws://broker.hivemq.com:8000/mqtt";
-// Definisikan semua topik yang akan digunakan (berlangganan dan publikasi)
 const MQTT_TOPICS_SUBSCRIBE = [
   "parking/distance",
   "parking/exitDistance",
-  "parking/dashboard_data", // Topik baru untuk data gabungan
+  "parking/dashboard_data",
 ];
-
-// Definisikan konstanta untuk topik publikasi data dashboard gabungan
 const MQTT_TOPIC_DASHBOARD_DATA = "parking/dashboard_data";
 
 const MAX_PARKING_CAPACITY = 20;
@@ -40,7 +36,7 @@ const ParkingGateDashboard: React.FC = () => {
     publish,
   } = useMqtt({
     brokerUrl: MQTT_BROKER_URL,
-    topics: MQTT_TOPICS_SUBSCRIBE, // Teruskan topik yang akan disubscribe
+    topics: MQTT_TOPICS_SUBSCRIBE,
   });
 
   const [entryDistance, setEntryDistance] = useState<number>(50);
@@ -64,7 +60,7 @@ const ParkingGateDashboard: React.FC = () => {
 
   const prevIsEntryGateOpenRef = useRef(false);
   const prevIsExitGateOpenRef = useRef(false);
-  const navigate = useNavigate();
+  // const navigate = useNavigate(); // Tidak diperlukan lagi karena tidak ada logout
 
   // Effect untuk mempublikasikan semua data dashboard ke satu topik MQTT
   useEffect(() => {
@@ -187,11 +183,11 @@ const ParkingGateDashboard: React.FC = () => {
     prevIsExitGateOpenRef.current = isExitGateOpen;
   }, [isExitGateOpen, vehicleEntryCount]);
 
-  const handleLogout = () => {
-    localStorage.removeItem("isAuthenticated");
-    toast.info("Anda telah logout.");
-    navigate("/login");
-  };
+  // const handleLogout = () => { // Fungsi ini dihapus
+  //   localStorage.removeItem("isAuthenticated");
+  //   toast.info("Anda telah logout.");
+  //   navigate("/login");
+  // };
 
   const handleReset = () => {
     // Hanya mereset hitungan harian
@@ -215,10 +211,7 @@ const ParkingGateDashboard: React.FC = () => {
             <RotateCcw className="h-4 w-4" />
             Reset Harian
           </Button>
-          <Button variant="outline" onClick={handleLogout} className="flex items-center gap-2">
-            <LogOut className="h-4 w-4" />
-            Logout
-          </Button>
+          {/* Tombol Logout dihapus */}
         </div>
       </div>
 
@@ -230,7 +223,7 @@ const ParkingGateDashboard: React.FC = () => {
           </CardHeader>
           <CardContent className="flex flex-col items-center gap-4">
             <UltrasonicSensor distance={entryDistance} />
-            <ParkingGate isOpen={isEntryGateOpen} />
+            <LEDIndicator isOn={isEntryGateOpen} label="LED Gerbang Masuk" /> {/* Mengganti ParkingGate */}
           </CardContent>
         </Card>
 
@@ -241,7 +234,7 @@ const ParkingGateDashboard: React.FC = () => {
           </CardHeader>
           <CardContent className="flex flex-col items-center gap-4">
             <UltrasonicSensor distance={exitDistance} />
-            <ParkingGate isOpen={isExitGateOpen} />
+            <LEDIndicator isOn={isExitGateOpen} label="LED Gerbang Keluar" /> {/* Mengganti ParkingGate */}
           </CardContent>
         </Card>
       </div>
